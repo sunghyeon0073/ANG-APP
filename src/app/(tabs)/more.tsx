@@ -1,10 +1,11 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar, Card, Header, Screen, type IconName } from '@/components/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth';
+import { Alert } from '@/lib/alert';
 import { SERVER_URL } from '@/lib/config';
 
 const MENU: { section: string; items: { label: string; icon: IconName; href: string; color: string; desc: string }[] }[] = [

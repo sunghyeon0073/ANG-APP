@@ -1,13 +1,14 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { UserSummary } from '@/api/chat';
 import { sendMail } from '@/api/mail';
 import { Button, Card, Header, Screen, TextField } from '@/components/ui';
 import { UserSearch } from '@/components/user-search';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Alert } from '@/lib/alert';
 import { errorMessage } from '@/lib/api';
 
 export default function MailComposeScreen() {

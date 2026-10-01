@@ -2,7 +2,6 @@ import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
@@ -17,6 +16,7 @@ import { Avatar, Badge, Button, Card, Divider, ErrorBanner, Header, IconButton, 
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth';
 import { useAsync } from '@/hooks/use-async';
+import { Alert } from '@/lib/alert';
 import { errorMessage } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
 

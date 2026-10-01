@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text } from 'react-native';
 
 import { createPrivateChatRoom } from '@/api/chat';
 import { Header, Screen } from '@/components/ui';
 import { UserSearch } from '@/components/user-search';
 import { Colors, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth';
+import { Alert } from '@/lib/alert';
 import { errorMessage } from '@/lib/api';
 
 export default function NewChatScreen() {

@@ -2,7 +2,6 @@ import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -43,6 +42,7 @@ import { APPROVAL_STATUS, LINE_STATUS, LINE_TYPE } from '@/constants/meta';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth';
 import { useAsync } from '@/hooks/use-async';
+import { Alert } from '@/lib/alert';
 import { errorMessage } from '@/lib/api';
 import { formatDate, formatDateTime, stripHtml } from '@/lib/format';
 

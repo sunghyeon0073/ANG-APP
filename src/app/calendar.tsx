@@ -1,7 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -26,6 +25,7 @@ import {
 import { Button, Card, EmptyState, ErrorBanner, Header, IconButton, PillTabs, Screen, TextField } from '@/components/ui';
 import { Colors, Radius, Shadow, Spacing } from '@/constants/theme';
 import { useAsync } from '@/hooks/use-async';
+import { Alert } from '@/lib/alert';
 import { errorMessage } from '@/lib/api';
 import { shortTime, WEEKDAYS, ymd } from '@/lib/format';
 
