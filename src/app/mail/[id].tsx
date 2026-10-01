@@ -5,6 +5,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -12,12 +13,13 @@ import {
   View,
 } from 'react-native';
 
-import { deleteMail, getMailDetail, replyMail, sendDraftMail } from '@/api/mail';
+import { cancelMail, deleteMail, getMailDetail, mailFilePath, replyMail } from '@/api/mail';
 import { Avatar, Badge, Button, Card, Divider, ErrorBanner, Header, IconButton, Loading, Screen, TextField } from '@/components/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth';
 import { useAsync } from '@/hooks/use-async';
 import { errorMessage } from '@/lib/api';
+import { showFileActions } from '@/lib/files';
 import { formatDateTime } from '@/lib/format';
 
 export default function MailDetailScreen() {
@@ -85,18 +87,25 @@ export default function MailDetailScreen() {
     }
   };
 
-  const handleSendDraft = async () => {
-    setBusy(true);
-    try {
-      await sendDraftMail(mail.mailId);
-      Alert.alert('발송 완료', '메일을 발송했습니다.');
-      router.back();
-    } catch (e) {
-      Alert.alert('발송 실패', errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const handleCancelSend = () =>
+    Alert.alert('발송 취소', '이 메일의 발송을 취소할까요? 이미 읽은 수신자가 있으면 취소할 수 없습니다.', [
+      { text: '닫기', style: 'cancel' },
+      {
+        text: '발송 취소',
+        style: 'destructive',
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await cancelMail(mail.mailId);
+            refresh();
+          } catch (e) {
+            Alert.alert('발송 취소 실패', errorMessage(e));
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -155,12 +164,16 @@ export default function MailDetailScreen() {
             <Card>
               <Text style={styles.sectionTitle}>첨부파일 {mail.attachments.length}</Text>
               {mail.attachments.map((a) => (
-                <View key={a.attachmentId} style={styles.attachment}>
+                <Pressable
+                  key={a.attachmentId}
+                  style={({ pressed }) => [styles.attachment, pressed && { opacity: 0.6 }]}
+                  onPress={() => showFileActions(mailFilePath(a.attachmentId), a.fileName)}>
                   <Feather name="paperclip" size={14} color={Colors.primary} />
                   <Text style={styles.attachmentName} numberOfLines={1}>
                     {a.fileName}
                   </Text>
-                </View>
+                  <Feather name="download" size={16} color={Colors.textMuted} />
+                </Pressable>
               ))}
             </Card>
           ) : null}
@@ -182,7 +195,12 @@ export default function MailDetailScreen() {
 
         <View style={styles.actionBar}>
           {isDraft ? (
-            <Button title="발송하기" icon="send" style={{ flex: 1 }} loading={busy} onPress={handleSendDraft} />
+            <Button
+              title="이어쓰기"
+              icon="edit-3"
+              style={{ flex: 1 }}
+              onPress={() => router.replace({ pathname: '/mail/compose', params: { draftId: mail.mailId } })}
+            />
           ) : replyOpen ? (
             <>
               <Button title="취소" variant="secondary" style={{ flex: 1 }} onPress={() => setReplyOpen(false)} />
@@ -191,13 +209,25 @@ export default function MailDetailScreen() {
           ) : !isMine ? (
             <Button title="답장" icon="corner-up-left" style={{ flex: 1 }} onPress={() => setReplyOpen(true)} />
           ) : (
-            <Button
-              title="새 메일 쓰기"
-              icon="edit-3"
-              variant="ghost"
-              style={{ flex: 1 }}
-              onPress={() => router.push('/mail/compose')}
-            />
+            <>
+              {mail.status === 'SENT' ? (
+                <Button
+                  title="발송 취소"
+                  icon="x-circle"
+                  variant="secondary"
+                  style={{ flex: 1 }}
+                  loading={busy}
+                  onPress={handleCancelSend}
+                />
+              ) : null}
+              <Button
+                title="새 메일 쓰기"
+                icon="edit-3"
+                variant="ghost"
+                style={{ flex: 1 }}
+                onPress={() => router.push('/mail/compose')}
+              />
+            </>
           )}
         </View>
       </KeyboardAvoidingView>

@@ -37,6 +37,8 @@ function RootNavigator() {
           <Stack.Screen name="approval/[id]" />
           <Stack.Screen name="chat/[roomId]" />
           <Stack.Screen name="chat/new" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="chat/info" />
+          <Stack.Screen name="chat/invite" options={{ presentation: 'modal' }} />
           <Stack.Screen name="mail/[id]" />
           <Stack.Screen name="mail/compose" options={{ presentation: 'modal' }} />
           <Stack.Screen name="notices/index" />
