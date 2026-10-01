@@ -3,7 +3,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { LockScreen } from '@/components/lock-screen';
 import { Colors } from '@/constants/theme';
+import { AppLockProvider, useAppLock } from '@/contexts/app-lock';
 import { AuthProvider, useAuth } from '@/contexts/auth';
 import { SocketProvider } from '@/contexts/socket';
 
@@ -12,13 +14,18 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootNavigator />
+      <AppLockProvider>
+        <RootNavigator />
+      </AppLockProvider>
     </AuthProvider>
   );
 }
 
 function RootNavigator() {
-  const { user, ready } = useAuth();
+  const { user, ready: authReady } = useAuth();
+  const { ready: lockReady, locked } = useAppLock();
+  // 잠금 여부를 확인하기 전까지 스플래시를 유지해 내용이 잠깐 보이지 않게 한다
+  const ready = authReady && lockReady;
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
@@ -53,6 +60,7 @@ function RootNavigator() {
           <Stack.Screen name="login" />
         </Stack.Protected>
       </Stack>
+      {locked ? <LockScreen /> : null}
     </SocketProvider>
   );
 }

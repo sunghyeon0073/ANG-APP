@@ -15,12 +15,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, TextField } from '@/components/ui';
 import { Colors, Radius, Shadow } from '@/constants/theme';
+import { useAppLock } from '@/contexts/app-lock';
 import { useAuth } from '@/contexts/auth';
 import { errorMessage } from '@/lib/api';
 
 /** 웹 Login.jsx + auth.css 레이아웃(좌측 브랜드 / 우측 카드)을 세로로 배치 */
 export default function LoginScreen() {
   const { signIn } = useAuth();
+  const { offerAfterLogin } = useAppLock();
   const [empNo, setEmpNo] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -37,6 +39,7 @@ export default function LoginScreen() {
     setError('');
     try {
       await signIn(empNo.trim(), password);
+      offerAfterLogin().catch(() => {});
     } catch (e) {
       setError(errorMessage(e, '로그인에 실패했습니다.'));
     } finally {

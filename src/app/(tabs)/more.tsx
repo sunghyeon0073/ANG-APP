@@ -1,9 +1,11 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { Avatar, Card, Header, Screen, type IconName } from '@/components/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useAppLock } from '@/contexts/app-lock';
 import { useAuth } from '@/contexts/auth';
 import { SERVER_URL } from '@/lib/config';
 
@@ -29,6 +31,23 @@ export default function MoreScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const dept = user?.departments?.[0];
+  const lock = useAppLock();
+  const [toggling, setToggling] = useState(false);
+
+  // 기기 설정에서 지문을 새로 등록하고 돌아온 경우를 위해 포커스마다 다시 확인
+  const { refreshAvailability } = lock;
+  useFocusEffect(
+    useCallback(() => {
+      refreshAvailability();
+    }, [refreshAvailability]),
+  );
+
+  const toggleLock = async (on: boolean) => {
+    setToggling(true);
+    const result = await lock.setEnabled(on);
+    setToggling(false);
+    if (!result.success && result.message) Alert.alert('생체인증 잠금', result.message);
+  };
 
   const handleLogout = () =>
     Alert.alert('로그아웃', '로그아웃 하시겠습니까?', [
@@ -80,6 +99,31 @@ export default function MoreScreen() {
             </Card>
           </View>
         ))}
+
+        <View>
+          <Text style={styles.section}>보안</Text>
+          <Card style={{ padding: 0 }}>
+            <View style={styles.item}>
+              <View style={[styles.icon, { backgroundColor: `${Colors.primary}1A` }]}>
+                <Feather name="lock" size={18} color={Colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.itemLabel}>생체인증 잠금</Text>
+                <Text style={styles.itemDesc}>
+                  {lock.available
+                    ? '앱을 열 때와 5분 이상 자리를 비운 뒤 지문/얼굴 인증'
+                    : '기기 설정에서 지문을 먼저 등록해주세요'}
+                </Text>
+              </View>
+              <Switch
+                value={lock.enabled}
+                onValueChange={toggleLock}
+                disabled={toggling || (!lock.available && !lock.enabled)}
+                trackColor={{ true: Colors.primary }}
+              />
+            </View>
+          </Card>
+        </View>
 
         <Pressable style={styles.logout} onPress={handleLogout}>
           <Feather name="log-out" size={16} color={Colors.rejected} />
