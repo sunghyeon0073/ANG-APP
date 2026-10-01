@@ -144,7 +144,11 @@ export default function AssistantScreen() {
         />
 
         {messages.length <= 1 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestions}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.suggestionBar}
+            contentContainerStyle={styles.suggestions}>
             {SUGGESTIONS.map((s) => (
               <Pressable key={s} style={styles.suggestion} onPress={() => send(s)}>
                 <Text style={styles.suggestionText}>{s}</Text>
@@ -272,7 +276,9 @@ const styles = StyleSheet.create({
   actionPrimary: { backgroundColor: Colors.primary },
   actionSecondary: { backgroundColor: Colors.primarySoft },
   actionText: { fontSize: 13, fontWeight: '600', color: Colors.primary },
-  suggestions: { gap: 8, paddingHorizontal: Spacing.md, paddingBottom: 10 },
+  /** ScrollView 기본 flexGrow:1 때문에 FlatList 와 높이를 나눠 갖지 않도록 고정 */
+  suggestionBar: { flexGrow: 0, flexShrink: 0 },
+  suggestions: { gap: 8, alignItems: 'center', paddingHorizontal: Spacing.md, paddingBottom: 10 },
   suggestion: {
     paddingHorizontal: 14,
     paddingVertical: 9,
