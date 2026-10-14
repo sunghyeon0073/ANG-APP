@@ -122,7 +122,7 @@ export default function DashboardScreen() {
                 style={({ pressed }) => [styles.approvalCard, pressed && { backgroundColor: Colors.primarySoft }]}
                 onPress={() => router.push({ pathname: '/approval', params: { folder: f.key } })}>
                 <Text style={[styles.approvalCount, { color: f.color }]}>{data?.counts ? data.counts[f.key] : '-'}</Text>
-                <Text style={styles.approvalLabel}>{f.key === 'my' ? '내 요청' : f.label}</Text>
+                <Text style={styles.approvalLabel}>{f.key === 'my' ? '내 진행중' : f.label}</Text>
               </Pressable>
             ))}
           </View>

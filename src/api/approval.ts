@@ -77,6 +77,9 @@ export async function getApprovalFolders(): Promise<Record<ApprovalFolder, Appro
     box('outbox/progress'),
     box('outbox/completed'),
   ]);
+  // 전부 실패하면(서버 오류/네트워크) 빈 목록 대신 에러를 보여준다
+  const failed = settled.find((s): s is PromiseRejectedResult => s.status === 'rejected');
+  if (failed && settled.every((s) => s.status === 'rejected')) throw failed.reason;
   const [waiting, completed, rejIn, rejOut, draft, progress, compOut] = settled.map((s) =>
     s.status === 'fulfilled' ? s.value : [],
   );
@@ -88,19 +91,23 @@ export async function getApprovalFolders(): Promise<Record<ApprovalFolder, Appro
   };
 }
 
-/** 홈 대시보드 요약 카운트 (웹 Home.ApprovalSummary 와 동일한 기준) */
+/**
+ * 홈 대시보드 요약 카운트.
+ * 반려는 결재 탭과 같이 받은/보낸 반려를 합친다. '내 요청'은 진행 중인 기안만 센다 (홈에서는 '진행중'으로 표시)
+ */
 export async function getApprovalCounts() {
   const count = (path: string) =>
     call<unknown>(`/approvals/${path}`, { params: { page: 0, size: 1 } })
       .then(toTotal)
       .catch(() => 0);
-  const [waiting, completed, rejected, my] = await Promise.all([
+  const [waiting, completed, rejIn, rejOut, my] = await Promise.all([
     count('inbox/pending'),
     count('inbox/completed'),
     count('inbox/rejected'),
+    count('outbox/rejected'),
     count('outbox/progress'),
   ]);
-  return { waiting, completed, rejected, my };
+  return { waiting, completed, rejected: rejIn + rejOut, my };
 }
 
 export const getApprovalDoc =(id: number | string) => call<ApprovalDoc>(`/approvals/documents/${id}`);

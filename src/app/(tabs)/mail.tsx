@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import {
   cancelMail,
@@ -13,9 +13,10 @@ import {
   type MailBox,
   type MailSummary,
 } from '@/api/mail';
-import { Avatar, EmptyState, ErrorBanner, Header, Loading, PillTabs, Screen } from '@/components/ui';
+import { ActionMenu, Avatar, EmptyState, type ActionMenuItem, ErrorBanner, Header, Loading, PillTabs, Screen } from '@/components/ui';
 import { Colors, Shadow, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth';
+import { Alert } from '@/lib/alert';
 import { errorMessage } from '@/lib/api';
 import { formatListDate } from '@/lib/format';
 
@@ -37,6 +38,8 @@ export default function MailListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
+  const [menu, setMenu] = useState<{ title: string; items: ActionMenuItem[] }>({ title: '', items: [] });
+  const [menuOpen, setMenuOpen] = useState(false);
   const pageRef = useRef(0);
   const hasNextRef = useRef(false);
   const boxRef = useRef(box);
@@ -53,6 +56,7 @@ export default function MailListScreen() {
       pageRef.current = 0;
       setError('');
     } catch (e) {
+      if (boxRef.current !== target) return;
       setError(errorMessage(e));
     } finally {
       setLoading(false);
@@ -84,6 +88,8 @@ export default function MailListScreen() {
       pageRef.current += 1;
       hasNextRef.current = res.hasNext;
       setItems((prev) => [...prev, ...res.items.filter((m) => !prev.some((p) => p.mailId === m.mailId))]);
+    } catch {
+      hasNextRef.current = false;
     } finally {
       setLoadingMore(false);
     }
@@ -113,12 +119,12 @@ export default function MailListScreen() {
   /** 길게 누르기 메뉴 (AngApp MailList 와 동일한 동작) */
   const showActions = (mail: MailSummary) => {
     const origin = mail.box === 'sent' ? 'sent' : 'inbox';
-    const buttons: Parameters<typeof Alert.alert>[2] = [];
+    const items: ActionMenuItem[] = [];
     if (box === 'trash') {
-      buttons.push({ text: '복원', onPress: act(() => restoreMail(mail.mailId, origin), '복원 실패') });
-      buttons.push({
-        text: '완전 삭제',
-        style: 'destructive',
+      items.push({ label: '복원', onPress: act(() => restoreMail(mail.mailId, origin), '복원 실패') });
+      items.push({
+        label: '완전 삭제',
+        destructive: true,
         onPress: () =>
           Alert.alert('완전 삭제', '이 메일을 완전히 삭제할까요? 복원할 수 없습니다.', [
             { text: '취소', style: 'cancel' },
@@ -126,19 +132,16 @@ export default function MailListScreen() {
           ]),
       });
     } else if (mail.box === 'draft') {
-      buttons.push({ text: '이어쓰기', onPress: () => router.push({ pathname: '/mail/compose', params: { draftId: mail.mailId } }) });
-      buttons.push({ text: '삭제', style: 'destructive', onPress: act(() => deleteMail(mail.mailId, 'draft'), '삭제 실패') });
+      items.push({ label: '이어쓰기', onPress: () => router.push({ pathname: '/mail/compose', params: { draftId: mail.mailId } }) });
+      items.push({ label: '삭제', destructive: true, onPress: act(() => deleteMail(mail.mailId, 'draft'), '삭제 실패') });
     } else {
       if (mail.box === 'sent' && mail.status === 'SENT') {
-        buttons.push({
-          text: '발송 취소',
-          onPress: act(() => cancelMail(mail.mailId), '발송 취소 실패'),
-        });
+        items.push({ label: '발송 취소', onPress: act(() => cancelMail(mail.mailId), '발송 취소 실패') });
       }
-      buttons.push({ text: '휴지통으로 이동', style: 'destructive', onPress: act(() => deleteMail(mail.mailId, origin), '삭제 실패') });
+      items.push({ label: '휴지통으로 이동', destructive: true, onPress: act(() => deleteMail(mail.mailId, origin), '삭제 실패') });
     }
-    buttons.push({ text: '닫기', style: 'cancel' });
-    Alert.alert(mail.title || '(제목 없음)', undefined, buttons);
+    setMenu({ title: mail.title || '(제목 없음)', items });
+    setMenuOpen(true);
   };
 
   const openMail = (mail: MailSummary) => {
@@ -185,6 +188,7 @@ export default function MailListScreen() {
         <Feather name="edit-3" size={18} color={Colors.white} />
         <Text style={styles.fabText}>메일 쓰기</Text>
       </Pressable>
+      <ActionMenu visible={menuOpen} title={menu.title} items={menu.items} onClose={() => setMenuOpen(false)} />
     </Screen>
   );
 }

@@ -1,13 +1,14 @@
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { getChatRoomMembers, getChatRooms, leaveChatRoom, updateChatRoomName } from '@/api/chat';
 import { Avatar, Button, Card, ErrorBanner, Header, Loading, Screen, TextField } from '@/components/ui';
 import { Colors, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth';
 import { useAsync } from '@/hooks/use-async';
+import { Alert } from '@/lib/alert';
 import { errorMessage } from '@/lib/api';
 
 /** 채팅방 정보: 참여자 목록, 그룹 이름 변경, 멤버 초대, 나가기 */

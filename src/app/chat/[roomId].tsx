@@ -3,7 +3,6 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -27,6 +26,7 @@ import { Avatar, ErrorBanner, Header, IconButton, Loading, Screen } from '@/comp
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth';
 import { useSocket } from '@/contexts/socket';
+import { Alert } from '@/lib/alert';
 import { errorMessage } from '@/lib/api';
 import { pickFiles, showFileActions } from '@/lib/files';
 import { formatTime, isSameDay, WEEKDAYS } from '@/lib/format';

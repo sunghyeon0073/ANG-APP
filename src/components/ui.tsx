@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import type { ComponentProps, ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -346,6 +347,54 @@ export function InfoRow({ label, value }: { label: string; value?: ReactNode }) 
   );
 }
 
+export type ActionMenuItem = { label: string; onPress: () => void; destructive?: boolean };
+
+/**
+ * 하단에서 올라오는 선택 메뉴. 버튼이 3개 이상이라 Alert 로 처리할 수 없는 메뉴에 쓴다
+ * (react-native-web 의 Alert 는 동작하지 않음)
+ */
+export function ActionMenu({
+  visible,
+  title,
+  items,
+  onClose,
+}: {
+  visible: boolean;
+  title?: string;
+  items: ActionMenuItem[];
+  onClose: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.menuOverlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <SafeAreaView edges={['bottom']} style={styles.menuSheet}>
+          <View style={styles.menuHandle} />
+          {title ? (
+            <Text style={styles.menuTitle} numberOfLines={2}>
+              {title}
+            </Text>
+          ) : null}
+          {items.map((item) => (
+            <Pressable
+              key={item.label}
+              onPress={() => {
+                onClose();
+                item.onPress();
+              }}
+              style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: Colors.primarySoft }]}>
+              <Text style={[styles.menuItemText, item.destructive && { color: Colors.danger }]}>{item.label}</Text>
+            </Pressable>
+          ))}
+          <Pressable onPress={onClose} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: Colors.primarySoft }]}>
+            <Text style={[styles.menuItemText, { color: Colors.textMuted }]}>닫기</Text>
+          </Pressable>
+        </SafeAreaView>
+      </View>
+    </Modal>
+  );
+}
+
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.bg },
   header: {
@@ -483,4 +532,23 @@ export const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', paddingVertical: 8, gap: 12 },
   infoLabel: { width: 76, fontSize: 13, color: Colors.textMuted },
   infoValue: { flex: 1, fontSize: 14, color: Colors.text, fontWeight: '500' },
+  menuOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,35,52,0.35)' },
+  menuSheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    padding: Spacing.lg,
+    paddingTop: 12,
+  },
+  menuHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.borderStrong,
+    marginBottom: 12,
+  },
+  menuTitle: { fontSize: 15, fontWeight: '700', color: Colors.text, marginBottom: 8, paddingHorizontal: 4 },
+  menuItem: { paddingVertical: 14, paddingHorizontal: 4, borderRadius: Radius.md },
+  menuItemText: { fontSize: 15, fontWeight: '600', color: Colors.text, textAlign: 'center' },
 });
