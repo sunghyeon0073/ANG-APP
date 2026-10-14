@@ -16,9 +16,11 @@ export const API_URL = isWeb ? '/api' : SERVER_API_URL;
 /**
  * STOMP 웹소켓 주소. 백엔드는 SockJS 엔드포인트(/ws)를 쓰므로
  * SockJS 의 raw websocket 경로(/ws/websocket)로 직접 접속한다.
- * 배포된 웹은 nginx 와 같은 출처로 붙는다 (백엔드가 다른 Origin 의 핸드셰이크를 거부하므로).
+ * 웹은 같은 출처로 붙는다 (백엔드가 다른 Origin 의 핸드셰이크를 403 으로 거부하므로).
+ * - 개발: Metro 프록시(metro.config.js)가 upgrade 요청도 백엔드로 넘긴다
+ * - 배포: nginx 가 넘긴다
  */
-const WS_BASE = isWeb && !__DEV__ ? `${globalThis.location?.origin ?? ''}/api` : SERVER_API_URL;
+const WS_BASE = isWeb ? `${globalThis.location?.origin ?? ''}/api` : SERVER_API_URL;
 export const WS_URL = `${WS_BASE.replace(/^http/, 'ws')}/ws/websocket`;
 
 /** 화면 표시용 서버 주소 */

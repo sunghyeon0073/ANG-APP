@@ -15,9 +15,56 @@ if (apiUrl) {
   const target = new URL(apiUrl);
   const client = target.protocol === 'https:' ? https : http;
 
+  /**
+   * 웹소켓(/api/ws/...)도 같은 방식으로 넘긴다. 백엔드가 다른 Origin 의 핸드셰이크를 403 으로 거부하기 때문.
+   * Metro 는 /hot 외의 upgrade 요청을 끊어버리므로, 기존 upgrade 리스너를 감싸 /api/ 만 가로챈다.
+   */
+  let upgradePatched = false;
+  const patchUpgrade = (server) => {
+    if (upgradePatched || !server) return;
+    upgradePatched = true;
+    const original = server.listeners('upgrade');
+    server.removeAllListeners('upgrade');
+    server.on('upgrade', (req, socket, head) => {
+      if (!req.url || !req.url.startsWith('/api/')) {
+        original.forEach((l) => l.call(server, req, socket, head));
+        return;
+      }
+      const headers = { ...req.headers, host: target.host };
+      delete headers.origin;
+      const proxyReq = client.request({
+        protocol: target.protocol,
+        hostname: target.hostname,
+        port: target.port,
+        method: req.method,
+        path: req.url,
+        headers,
+      });
+      proxyReq.on('upgrade', (proxyRes, proxySocket, proxyHead) => {
+        const lines = [`HTTP/1.1 ${proxyRes.statusCode} ${proxyRes.statusMessage}`];
+        for (let i = 0; i < proxyRes.rawHeaders.length; i += 2) {
+          lines.push(`${proxyRes.rawHeaders[i]}: ${proxyRes.rawHeaders[i + 1]}`);
+        }
+        socket.write(lines.join('\r\n') + '\r\n\r\n');
+        if (proxyHead && proxyHead.length) socket.write(proxyHead);
+        if (head && head.length) proxySocket.write(head);
+        proxySocket.pipe(socket).pipe(proxySocket);
+        proxySocket.on('error', () => socket.destroy());
+        socket.on('error', () => proxySocket.destroy());
+      });
+      // 업그레이드 대신 일반 응답(403 등)이 오면 상태 코드만 돌려주고 닫는다
+      proxyReq.on('response', (proxyRes) => {
+        socket.end(`HTTP/1.1 ${proxyRes.statusCode} ${proxyRes.statusMessage}\r\n\r\n`);
+      });
+      proxyReq.on('error', () => socket.destroy());
+      proxyReq.end();
+    });
+  };
+
   config.server = {
     ...config.server,
     enhanceMiddleware: (middleware) => (req, res, next) => {
+      patchUpgrade(req.socket && req.socket.server);
       if (!req.url || !req.url.startsWith('/api/')) return middleware(req, res, next);
 
       const headers = { ...req.headers, host: target.host };
