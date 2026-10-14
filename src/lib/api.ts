@@ -124,6 +124,34 @@ export async function refreshAccessToken(): Promise<boolean> {
   return refreshPromise;
 }
 
+/** 세션을 정리하고 로그인 화면으로 보낸다 (토큰 갱신 실패 시) */
+async function expireSession() {
+  await session.clear();
+  onSessionExpired?.();
+}
+
+/** JWT 의 exp 가 지났거나 skewMs 안에 만료되는지. 파싱할 수 없으면 false (서버 판단에 맡김) */
+export function isTokenExpired(token: string, skewMs = 30_000): boolean {
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const { exp } = JSON.parse(atob(payload.padEnd(Math.ceil(payload.length / 4) * 4, '=')));
+    return typeof exp === 'number' && exp * 1000 - skewMs <= Date.now();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 액세스 토큰이 만료(임박)됐으면 미리 갱신한다. 401 을 받아 재시도할 수 없는 곳(웹소켓 CONNECT)에서 사용.
+ * force 면 만료 여부와 상관없이 갱신. 갱신에 실패하면 REST 401 과 같이 로그아웃 처리하고 false.
+ */
+export async function ensureFreshToken(force = false): Promise<boolean> {
+  if (!tokens.accessToken || (!force && !isTokenExpired(tokens.accessToken))) return true;
+  if (await refreshAccessToken()) return true;
+  await expireSession();
+  return false;
+}
+
 async function parseBody(res: Response) {
   const text = await res.text();
   if (!text) return null;
@@ -155,8 +183,7 @@ export async function request<T = unknown>(path: string, options: RequestOptions
   if (res.status === 401 && !anonymous && !retried) {
     const ok = await refreshAccessToken();
     if (ok) return request<T>(path, options, true);
-    await session.clear();
-    onSessionExpired?.();
+    await expireSession();
     throw new ApiError(401, '로그인이 만료되었습니다. 다시 로그인해주세요.');
   }
 
