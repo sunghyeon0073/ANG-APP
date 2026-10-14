@@ -15,8 +15,13 @@ type SocketState = {
   subscribeRoom: (roomId: number, listener: Listener<ChatMessage>) => () => void;
   /** 개인 알림 큐(/user/queue/notification) 구독 */
   onNotification: (listener: Listener<AppNotification>) => () => void;
-  sendMessage: (roomId: number, content: string) => boolean;
+  /** 채팅방 초대 이벤트(/user/queue/invite) 구독 */
+  onInvite: (listener: Listener<unknown>) => () => void;
+  sendMessage: (roomId: number, message: string | OutgoingMessage) => boolean;
 };
+
+/** 파일 메시지는 업로드 후 받은 fileUrl/fileName 을 함께 보낸다 */
+type OutgoingMessage = { content: string; fileUrl?: string; fileName?: string };
 
 const SocketContext = createContext<SocketState | null>(null);
 
@@ -30,6 +35,7 @@ export function SocketProvider({ enabled, children }: { enabled: boolean; childr
   const roomListeners = useRef(new Map<number, Set<Listener<ChatMessage>>>());
   const roomSubs = useRef(new Map<number, StompSubscription>());
   const notificationListeners = useRef(new Set<Listener<AppNotification>>());
+  const inviteListeners = useRef(new Set<Listener<unknown>>());
 
   const attachRoom = useCallback((roomId: number) => {
     const client = clientRef.current;
@@ -64,6 +70,12 @@ export function SocketProvider({ enabled, children }: { enabled: boolean; childr
           try {
             const n = JSON.parse(frame.body) as AppNotification;
             notificationListeners.current.forEach((l) => l(n));
+          } catch {}
+        });
+        client.subscribe('/user/queue/invite', (frame) => {
+          try {
+            const payload = JSON.parse(frame.body) as unknown;
+            inviteListeners.current.forEach((l) => l(payload));
           } catch {}
         });
         roomListeners.current.forEach((set, roomId) => {
@@ -113,13 +125,20 @@ export function SocketProvider({ enabled, children }: { enabled: boolean; childr
     };
   }, []);
 
-  const sendMessage = useCallback((roomId: number, content: string) => {
+  const onInvite = useCallback((listener: Listener<unknown>) => {
+    inviteListeners.current.add(listener);
+    return () => {
+      inviteListeners.current.delete(listener);
+    };
+  }, []);
+
+  const sendMessage = useCallback((roomId: number, message: string | OutgoingMessage) => {
     const client = clientRef.current;
     if (!client?.connected) return false;
     client.publish({
       destination: '/app/chat.send',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ roomId, content }),
+      body: JSON.stringify({ roomId, ...(typeof message === 'string' ? { content: message } : message) }),
     });
     return true;
   }, []);
@@ -130,8 +149,8 @@ export function SocketProvider({ enabled, children }: { enabled: boolean; childr
   }, [status, attachRoom]);
 
   const value = useMemo(
-    () => ({ status, subscribeRoom, onNotification, sendMessage }),
-    [status, subscribeRoom, onNotification, sendMessage],
+    () => ({ status, subscribeRoom, onNotification, onInvite, sendMessage }),
+    [status, subscribeRoom, onNotification, onInvite, sendMessage],
   );
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
 }

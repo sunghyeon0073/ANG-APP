@@ -12,7 +12,7 @@ import { formatListDate } from '@/lib/format';
 
 export default function ChatListScreen() {
   const router = useRouter();
-  const { status, subscribeRoom } = useSocket();
+  const { status, subscribeRoom, onInvite } = useSocket();
   const [keyword, setKeyword] = useState('');
   const { data, loading, refreshing, refresh, reload, error } = useAsync(getChatRooms, [], { refetchOnFocus: true });
 
@@ -24,6 +24,9 @@ export default function ChatListScreen() {
     return () => offs.forEach((off) => off());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomIds, subscribeRoom]);
+
+  // 다른 사람이 나를 방에 초대하면 목록을 갱신
+  useEffect(() => onInvite(() => reload()), [onInvite, reload]);
 
   const rooms = useMemo(() => {
     const k = keyword.trim().toLowerCase();
