@@ -95,7 +95,8 @@ const buildUrl = (path: string, params?: Query) => {
   return qs ? `${url}?${qs}` : url;
 };
 
-async function refreshAccessToken(): Promise<boolean> {
+/** 리프레시 토큰으로 액세스 토큰 갱신. 동시 호출은 하나로 합쳐진다 (파일 다운로드 등 request 밖에서도 사용) */
+export async function refreshAccessToken(): Promise<boolean> {
   if (!tokens.refreshToken) return false;
   if (!refreshPromise) {
     refreshPromise = (async () => {

@@ -1,8 +1,9 @@
 import { Feather } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -13,12 +14,21 @@ import {
   View,
 } from 'react-native';
 
-import { getChatMessages, getChatRooms, markChatRoomAsRead, type ChatMessage, type ChatRoom } from '@/api/chat';
-import { Avatar, ErrorBanner, Header, Loading, Screen } from '@/components/ui';
+import {
+  chatFilePath,
+  getChatMessages,
+  getChatRooms,
+  markChatRoomAsRead,
+  uploadChatFile,
+  type ChatMessage,
+  type ChatRoom,
+} from '@/api/chat';
+import { Avatar, ErrorBanner, Header, IconButton, Loading, Screen } from '@/components/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth';
 import { useSocket } from '@/contexts/socket';
 import { errorMessage } from '@/lib/api';
+import { pickFiles, showFileActions } from '@/lib/files';
 import { formatTime, isSameDay, WEEKDAYS } from '@/lib/format';
 
 const PAGE_SIZE = 30;
@@ -28,6 +38,7 @@ const isSameMessage = (a: ChatMessage, b: ChatMessage) =>
   a.messageId === b.messageId ||
   (a.senderEmpNo === b.senderEmpNo &&
     a.content === b.content &&
+    a.fileUrl === b.fileUrl &&
     Math.abs(+new Date(a.sentAt) - +new Date(b.sentAt)) <= 1500);
 
 const dayLabel = (d: Date) => `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${WEEKDAYS[d.getDay()]}요일`;
@@ -35,6 +46,7 @@ const dayLabel = (d: Date) => `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.
 export default function ChatRoomScreen() {
   const { roomId: roomIdParam } = useLocalSearchParams<{ roomId: string }>();
   const roomId = Number(roomIdParam);
+  const router = useRouter();
   const { user } = useAuth();
   const { status, subscribeRoom, sendMessage } = useSocket();
 
@@ -46,6 +58,7 @@ export default function ChatRoomScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState('');
   const [text, setText] = useState('');
+  const [uploading, setUploading] = useState(false);
   const pageRef = useRef(0);
 
   const load = useCallback(async () => {
@@ -68,6 +81,20 @@ export default function ChatRoomScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 참여자 화면에서 이름 변경/초대 후 돌아오면 방 정보만 갱신
+  const firstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      getChatRooms()
+        .then((rooms) => setRoom(rooms.find((r) => r.roomId === roomId) ?? null))
+        .catch(() => {});
+    }, [roomId]),
+  );
 
   useEffect(
     () =>
@@ -105,6 +132,24 @@ export default function ChatRoomScreen() {
     setText('');
   };
 
+  const handleAttach = async () => {
+    if (uploading) return;
+    try {
+      const [file] = await pickFiles();
+      if (!file) return;
+      setUploading(true);
+      const uploaded = await uploadChatFile(roomId, file);
+      const fileName = uploaded.fileName || file.name;
+      if (!sendMessage(roomId, { content: fileName, fileUrl: uploaded.fileUrl, fileName })) {
+        setError('실시간 연결이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
+      }
+    } catch (e) {
+      Alert.alert('업로드 실패', errorMessage(e, '파일을 업로드하지 못했습니다.'));
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const title = room?.name ?? '채팅';
   const subtitle =
     room?.type === 'GROUP'
@@ -115,7 +160,12 @@ export default function ChatRoomScreen() {
 
   return (
     <Screen edges={['top', 'bottom']}>
-      <Header title={title} subtitle={subtitle} back />
+      <Header
+        title={title}
+        subtitle={subtitle}
+        back
+        right={<IconButton name="users" onPress={() => router.push({ pathname: '/chat/info', params: { roomId } })} />}
+      />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -160,6 +210,13 @@ export default function ChatRoomScreen() {
         )}
 
         <View style={styles.inputBar}>
+          <Pressable onPress={handleAttach} disabled={uploading} style={styles.attachButton} hitSlop={6}>
+            {uploading ? (
+              <ActivityIndicator color={Colors.primary} size="small" />
+            ) : (
+              <Feather name="paperclip" size={20} color={Colors.textMuted} />
+            )}
+          </Pressable>
           <TextInput
             value={text}
             onChangeText={setText}
@@ -199,13 +256,18 @@ function MessageBubble({
     );
   }
 
-  const body = message.fileUrl ? (
-    <View style={styles.fileRow}>
+  const fileUrl = message.fileUrl;
+  const fileName = message.fileName || message.content || '파일';
+  const body = fileUrl ? (
+    <Pressable style={styles.fileRow} onPress={() => showFileActions(chatFilePath(fileUrl), fileName)}>
       <Feather name="file" size={16} color={mine ? Colors.white : Colors.primary} />
-      <Text style={[styles.bubbleText, mine && { color: Colors.white }]} numberOfLines={2}>
-        {message.fileName || '파일'}
+      <Text
+        style={[styles.bubbleText, styles.fileName, mine && { color: Colors.white }]}
+        numberOfLines={2}>
+        {fileName}
       </Text>
-    </View>
+      <Feather name="download" size={14} color={mine ? Colors.white : Colors.textMuted} />
+    </Pressable>
   ) : (
     <Text style={[styles.bubbleText, mine && { color: Colors.white }]}>{message.content}</Text>
   );
@@ -255,6 +317,7 @@ const styles = StyleSheet.create({
   bubbleOther: { backgroundColor: Colors.surface, borderTopLeftRadius: 6 },
   bubbleText: { fontSize: 15, color: Colors.text, lineHeight: 21 },
   fileRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  fileName: { flexShrink: 1, textDecorationLine: 'underline' },
   time: { fontSize: 11, color: Colors.textSubtle, marginBottom: 2 },
   system: { alignItems: 'center', marginVertical: 10 },
   systemText: { fontSize: 12, color: Colors.textMuted },
@@ -279,6 +342,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
   },
+  attachButton: { width: 36, height: 42, alignItems: 'center', justifyContent: 'center' },
   sendButton: {
     width: 42,
     height: 42,
