@@ -60,6 +60,12 @@ export default function MailComposeScreen() {
     const { mailId, failedFiles } = await saveDraftWithFiles(payload(), pendingFiles, draftId);
     setDraftId(mailId);
     setPendingFiles(failedFiles);
+    // 업로드된 첨부는 '저장됨' 목록으로 옮긴다 (발송 실패 후 다시 시도할 때도 보이도록)
+    if (failedFiles.length < pendingFiles.length) {
+      getMailDetail(mailId)
+        .then((d) => setSavedFiles(d.attachments ?? []))
+        .catch(() => {});
+    }
     if (failedFiles.length) {
       Alert.alert('첨부 업로드 실패', `첨부파일 ${failedFiles.length}개를 올리지 못했습니다. 다시 시도해주세요.`);
     }

@@ -1,8 +1,9 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { Directory, File, Paths } from 'expo-file-system';
 import { startActivityAsync } from 'expo-intent-launcher';
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
+import { Alert } from './alert';
 import { API_URL } from './config';
 import { ApiError, errorMessage, refreshAccessToken, session } from './api';
 

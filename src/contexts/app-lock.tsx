@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Alert, AppState } from 'react-native';
+import { AppState } from 'react-native';
 
 import { useAuth } from '@/contexts/auth';
+import { Alert } from '@/lib/alert';
 import { authenticate, getBiometricPref, isBiometricAvailable, setBiometricPref } from '@/lib/biometric';
 
 /** 백그라운드에 이 시간 이상 있다가 돌아오면 잠근다 (파일 선택기/뷰어 왕복은 잠그지 않음) */

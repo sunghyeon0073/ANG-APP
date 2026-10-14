@@ -1,12 +1,13 @@
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { inviteChatMembers, type UserSummary } from '@/api/chat';
 import { Button, Header, Screen } from '@/components/ui';
 import { UserSearch } from '@/components/user-search';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Alert } from '@/lib/alert';
 import { errorMessage } from '@/lib/api';
 
 /** 기존 채팅방에 멤버 초대 */
