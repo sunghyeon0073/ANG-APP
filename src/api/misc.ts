@@ -6,7 +6,8 @@ export type LoginResult = { accessToken: string; refreshToken: string; user: Use
 export const login = (empNo: string, password: string) =>
   call<LoginResult>('/auth/login', { method: 'POST', body: { empNo, password }, anonymous: true });
 
-export const getMyInfo = () => call<User>('/users/me');
+/** 서버에 /users/me 가 없어 로그인 때 받은 id 로 조회한다 */
+export const getMyInfo = (id: number) => call<User>(`/users/${id}`);
 
 /* ─────────────── 알림 ─────────────── */
 export type NotificationType = 'CHAT' | 'MAIL' | 'APPROVAL' | 'BOARD' | 'AI';

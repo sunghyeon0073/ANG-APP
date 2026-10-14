@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((saved) => {
         setUser(saved);
         // 저장된 정보가 오래됐을 수 있으니 백그라운드에서 최신화
-        if (saved) getMyInfo().then((fresh) => fresh && setUser({ ...saved, ...fresh })).catch(() => {});
+        if (saved) getMyInfo(saved.id).then((fresh) => fresh && setUser({ ...saved, ...fresh })).catch(() => {});
       })
       .finally(() => setReady(true));
     return () => session.setOnExpired(null);
