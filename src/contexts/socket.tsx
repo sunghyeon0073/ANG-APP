@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import type { ChatMessage } from '@/api/chat';
 import type { AppNotification } from '@/api/misc';
-import { session } from '@/lib/api';
+import { ensureFreshToken, session } from '@/lib/api';
 import { WS_URL } from '@/lib/config';
 
 type Status = 'idle' | 'connecting' | 'connected' | 'error';
@@ -51,6 +51,8 @@ export function SocketProvider({ enabled, children }: { enabled: boolean; childr
 
   useEffect(() => {
     if (!enabled) return;
+    // 서버가 토큰을 거부(Unauthorized)하면 다음 재연결 전에 무조건 갱신한다
+    let needsRefresh = false;
     const client = new Client({
       brokerURL: WS_URL,
       reconnectDelay: 3000,
@@ -59,9 +61,14 @@ export function SocketProvider({ enabled, children }: { enabled: boolean; childr
       // React Native WebSocket 호환 옵션
       forceBinaryWSFrames: true,
       appendMissingNULLonIncoming: true,
-      beforeConnect: (c) => {
-        c.connectHeaders = { Authorization: `Bearer ${session.getToken() ?? ''}` };
+      // CONNECT 는 401 재시도가 없어 만료 토큰을 보내면 재연결 실패가 반복되므로, 보내기 전에 갱신한다
+      beforeConnect: async (c) => {
         setStatus('connecting');
+        try {
+          await ensureFreshToken(needsRefresh);
+        } catch {}
+        needsRefresh = false;
+        c.connectHeaders = { Authorization: `Bearer ${session.getToken() ?? ''}` };
       },
       onConnect: () => {
         setStatus('connected');
@@ -82,7 +89,10 @@ export function SocketProvider({ enabled, children }: { enabled: boolean; childr
           if (set.size) attachRoom(roomId);
         });
       },
-      onStompError: () => setStatus('error'),
+      onStompError: (frame) => {
+        if (/unauthorized/i.test(frame.headers.message ?? '')) needsRefresh = true;
+        setStatus('error');
+      },
       onWebSocketError: () => setStatus('error'),
       onWebSocketClose: () => {
         roomSubs.current.clear();
