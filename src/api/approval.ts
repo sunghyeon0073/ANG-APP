@@ -44,7 +44,32 @@ export type ApprovalDoc = {
   completedAt?: string | null;
   approvalLines: ApprovalLine[];
   attachments?: { id: number; fileName: string; contentType?: string }[];
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
 };
+
+/** 다중 첨부와 기존 단일 첨부 모두 인증된 백엔드 경로로 다운로드한다. */
+export function getApprovalFiles(doc: ApprovalDoc) {
+  const base = `/approvals/documents/${doc.id}`;
+  const files = (doc.attachments ?? []).map((attachment) => ({
+    key: String(attachment.id),
+    fileName: attachment.fileName,
+    path: `${base}/attachments/${attachment.id}`,
+  }));
+  if (doc.attachmentUrl) {
+    let fileName = doc.attachmentName;
+    if (!fileName) {
+      const name = doc.attachmentUrl.split(/[?#]/)[0].split('/').pop();
+      try {
+        fileName = name ? decodeURIComponent(name) : '첨부파일';
+      } catch {
+        fileName = name || '첨부파일';
+      }
+    }
+    files.push({ key: 'legacy', fileName, path: `${base}/attachment` });
+  }
+  return files;
+}
 
 export type ApprovalComment = {
   id: number;
