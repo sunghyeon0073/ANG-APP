@@ -20,6 +20,7 @@ import {
   approveApprovalDoc,
   getApprovalComments,
   getApprovalDoc,
+  getApprovalFiles,
   parseFormData,
   rejectApprovalDoc,
 } from '@/api/approval';
@@ -44,6 +45,7 @@ import { useAuth } from '@/contexts/auth';
 import { useAsync } from '@/hooks/use-async';
 import { Alert } from '@/lib/alert';
 import { errorMessage } from '@/lib/api';
+import { showFileActions } from '@/lib/files';
 import { formatDate, formatDateTime, stripHtml } from '@/lib/format';
 
 /** 웹 기안 양식(formData) 필드 라벨 */
@@ -119,6 +121,7 @@ export default function ApprovalDetailScreen() {
 
   const status = APPROVAL_STATUS[doc.status] ?? { label: doc.status, color: Colors.textMuted };
   const opinions = lines.filter((l) => l.comment);
+  const files = getApprovalFiles(doc);
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -190,16 +193,22 @@ export default function ApprovalDetailScreen() {
           </Card>
 
           {/* 첨부 */}
-          {doc.attachments?.length ? (
+          {files.length ? (
             <Card>
-              <SectionHeader title={`첨부파일 ${doc.attachments.length}`} />
-              {doc.attachments.map((a) => (
-                <View key={a.id} style={styles.attachment}>
+              <SectionHeader title={`첨부파일 ${files.length}`} />
+              {files.map((a) => (
+                <Pressable
+                  key={a.key}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${a.fileName} 다운로드`}
+                  style={({ pressed }) => [styles.attachment, pressed && { opacity: 0.6 }]}
+                  onPress={() => showFileActions(a.path, a.fileName)}>
                   <Feather name="paperclip" size={14} color={Colors.primary} />
                   <Text style={styles.attachmentName} numberOfLines={1}>
                     {a.fileName}
                   </Text>
-                </View>
+                  <Feather name="download" size={16} color={Colors.primary} />
+                </Pressable>
               ))}
             </Card>
           ) : null}
@@ -377,7 +386,7 @@ const styles = StyleSheet.create({
   fieldBody: { backgroundColor: Colors.surfaceMuted, borderRadius: Radius.md, padding: Spacing.sm },
   fieldBodyText: { fontSize: 14, color: Colors.text, lineHeight: 21 },
   muted: { fontSize: 13, color: Colors.textMuted },
-  attachment: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
+  attachment: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, minHeight: 48 },
   attachmentName: { flex: 1, fontSize: 14, color: Colors.text },
   opinion: { paddingVertical: 8, gap: 4, borderBottomWidth: 1, borderBottomColor: Colors.border },
   opinionRole: { fontSize: 12, fontWeight: '700', color: Colors.primary },
