@@ -1,6 +1,8 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { Directory, File, Paths } from 'expo-file-system';
 import { startActivityAsync } from 'expo-intent-launcher';
+import { router } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 
 import { Alert } from './alert';
@@ -31,8 +33,15 @@ const MIME_BY_EXT: Record<string, string> = {
   mp4: 'video/mp4',
 };
 
-export const mimeOf = (fileName?: string | null) =>
-  MIME_BY_EXT[(fileName?.split('.').pop() ?? '').toLowerCase()] ?? 'application/octet-stream';
+const extOf = (fileName?: string | null) => (fileName?.split('.').pop() ?? '').toLowerCase();
+
+export const mimeOf = (fileName?: string | null) => MIME_BY_EXT[extOf(fileName)] ?? 'application/octet-stream';
+
+/** iOS WKWebView 가 직접 그릴 수 있는 확장자 */
+const IOS_PREVIEWABLE = new Set([
+  'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv',
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'mp4', 'mov',
+]);
 
 /** 파일 선택. 취소하면 빈 배열 */
 export async function pickFiles(multiple = false): Promise<PickedFile[]> {
@@ -94,11 +103,17 @@ async function downloadOnWeb(path: string, fileName: string) {
 
 /**
  * 파일을 받아 기기의 뷰어 앱으로 연다 (Android ACTION_VIEW + FileProvider content URI).
+ * iOS 는 intent 가 없으므로 앱 안 뷰어(file-viewer)로 보여주고, 웹뷰가 못 그리는 형식(hwp 등)은 공유 시트를 띄운다.
  * 열 수 있는 앱이 없으면 에러를 던진다.
  */
 export async function downloadAndOpen(path: string, fileName: string) {
   if (Platform.OS === 'web') return downloadOnWeb(path, fileName);
   const file = await downloadToCache(path, fileName);
+  if (Platform.OS === 'ios') {
+    if (!IOS_PREVIEWABLE.has(extOf(fileName))) return Sharing.shareAsync(file.uri);
+    router.push({ pathname: '/file-viewer', params: { uri: file.uri, name: fileName } });
+    return;
+  }
   try {
     await startActivityAsync('android.intent.action.VIEW', {
       data: file.contentUri,
@@ -112,7 +127,8 @@ export async function downloadAndOpen(path: string, fileName: string) {
 
 /**
  * 파일을 받아 사용자가 고른 폴더(예: Download)에 저장한다 (Android 저장소 접근 프레임워크).
- * 폴더 선택을 취소하면 false.
+ * iOS 는 공유 시트의 "파일에 저장"으로 저장한다.
+ * 폴더 선택을 취소하거나 저장 여부를 알 수 없으면(iOS) false.
  */
 export async function downloadAndSave(path: string, fileName: string): Promise<boolean> {
   if (Platform.OS === 'web') {
@@ -120,6 +136,10 @@ export async function downloadAndSave(path: string, fileName: string): Promise<b
     return true;
   }
   const cached = await downloadToCache(path, fileName);
+  if (Platform.OS === 'ios') {
+    await Sharing.shareAsync(cached.uri);
+    return false;
+  }
   let dir: Directory;
   try {
     dir = await Directory.pickDirectoryAsync();
