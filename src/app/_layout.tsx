@@ -55,6 +55,7 @@ function RootNavigator() {
           <Stack.Screen name="documents/[id]" />
           <Stack.Screen name="calendar" />
           <Stack.Screen name="assistant" />
+          <Stack.Screen name="file-viewer" />
         </Stack.Protected>
         <Stack.Protected guard={!loggedIn}>
           <Stack.Screen name="login" />
